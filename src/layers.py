@@ -3,6 +3,8 @@
 from abc import ABC, abstractmethod
 import numpy as np
 
+from utils import convolve
+
 class Layer(ABC):
 
     @abstractmethod
@@ -22,4 +24,23 @@ class Layer(ABC):
     def update(self, lr):
         """Update layer's parameters, if it has any"""
 
+        pass
+
+
+class ConvLayer(Layer):
+    
+    def __init__(self, W: np.ndarray, B: np.ndarray):
+        self.W = W
+        self.B = B
+
+
+    def forward(self, X: np.ndarray):
+        Y = convolve(self.W, X)
+        return [Y_i + B_i for (Y_i,B_i) in zip(Y,self.B)]
+
+    def backward(self, dL_dOut):
+        pass
+
+    
+    def update(self, lr):
         pass

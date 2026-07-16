@@ -24,8 +24,7 @@ def convolve(W: np.ndarray, X: np.ndarray):
     Y = np.zeros((yc, yh, yw))
 
     for i in range(wh):
-        for j in range(ww):
-            Y[i] += convolve_1c(W[i][j], X[j])
+            Y[i] = np.sum([convolve_1c(W_ij, X_j) for (W_ij, X_j) in zip(W[i],X)], axis=0)
 
     return Y
 
