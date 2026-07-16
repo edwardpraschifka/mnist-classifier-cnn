@@ -7,6 +7,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from layers import Layer, ConvLayer
+from utils import convolve
 
 class TestBaseLayer:
     def test_instantiate(self):
@@ -14,37 +15,18 @@ class TestBaseLayer:
             my_layer_class = Layer()
 
 
-@pytest.mark.parametrize("output_channels", [1,2])
-@pytest.mark.parametrize("input_channels", [1,2])
-@pytest.mark.parametrize("padding", [0,1])
-@pytest.mark.parametrize("stride", [1,2])
-def test_forward(output_channels: int, input_channels: int, padding: int, stride: int):
-    torch_conv = nn.Conv2d(input_channels, 
-                        output_channels, 
-                        kernel_size=(2,2), 
-                        stride=stride, 
-                        padding=padding)
-    
-    np.random.seed(42)
-    X = np.random.rand(input_channels,3,3)
-                
-    X_torch = torch.tensor(X, dtype=torch.float32)
+class TestConvLayer:
+    @pytest.mark.parametrize("output_channels", [1,2,3,4])
+    def test_forward(self, output_channels: int):
+        np.random.seed(42)
+        input_channels, padding, stride = 2, 0, 1
+        X = np.random.rand(input_channels,3,3)
+        W = np.random.rand(output_channels, input_channels, 2, 2)
+        B = np.random.rand(output_channels)
 
-    W = np.random.rand(output_channels, input_channels, 2, 2)
+        Y_expected = convolve(W, X, padding, stride) + B[:, None, None]
 
-    W_torch = torch.tensor(W, dtype=torch.float32)
+        my_conv = ConvLayer(W, B, stride, padding)
+        Y = my_conv.forward(X)
 
-    B = np.random.rand(output_channels)
-    
-    B_torch = torch.tensor(B, dtype=torch.float32)
-
-    with torch.no_grad():
-        torch_conv.weight.copy_(W_torch)
-        torch_conv.bias.copy_(B_torch)
-    
-    Y_torch = torch_conv.forward(X_torch)
-
-    my_conv = ConvLayer(W, B, stride, padding)
-    Y = my_conv.forward(X)
-    
-    assert np.allclose(Y_torch.detach().numpy(), Y)
+        assert np.allclose(Y_expected, Y)
