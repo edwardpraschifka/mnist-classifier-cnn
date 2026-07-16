@@ -28,15 +28,17 @@ class Layer(ABC):
 
 
 class ConvLayer(Layer):
-    
-    def __init__(self, W: np.ndarray, B: np.ndarray):
+
+    def __init__(self, W: np.ndarray, B: np.ndarray, stride = 1, padding = 0):
         self.W = W
         self.B = B
+        self.stride = stride
+        self.padding = padding
 
 
     def forward(self, X: np.ndarray):
-        Y = convolve(self.W, X)
-        return [Y_i + B_i for (Y_i,B_i) in zip(Y,self.B)]
+        Y = convolve(self.W, X, self.padding, self.stride)
+        return np.array([Y_i + B_i for (Y_i,B_i) in zip(Y,self.B)])
 
     def backward(self, dL_dOut):
         pass
