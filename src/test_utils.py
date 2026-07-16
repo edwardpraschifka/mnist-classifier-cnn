@@ -1,4 +1,6 @@
 import numpy as np
+import torch
+import torch.nn as nn
 
 from utils import convolve_1c, convolve
 
@@ -24,31 +26,19 @@ def test_conv_1c():
     
 
 def test_conv():
-    X = np.zeros((2,3,3))
-    X[0] = [[1,0,1],
-           [-1,1,0],
-           [-1,-1,1]]
-    
-    X[1] = [[0,0,1],
-           [1,-1,1],
-           [1,1,0]]
-
-    W = np.zeros((3,2,2,2))
-
-    W[0] = [[[1,2], [3,4]], [[4,3], [2,1]]]
-    W[1] = [[[1,3], [2,4]], [[3,2], [1,4]]]
-    W[2] = [[[2,1], [3,4]], [[1,2], [4,3]]]
+    np.random.seed(42)
+    X = np.random.rand(2,3,3)
+    W = np.random.randn(3,2,2,2)
 
     Y = convolve(W,X)
-    Y_actual = np.zeros((3,2,2))
-
-    Y_actual[0] = [[ 3,  7],
-            [-2,  3]]
-
-    Y_actual[1] = [[ 0, 10],
-            [ 2,  3]]
-
-    Y_actual[2] = [[ 4,  5],
-            [-2,  8]]
     
-    assert np.array_equal(Y, Y_actual)
+    torch_conv = nn.Conv2d(2, 3, 2, bias=False)
+    torch_X = torch.tensor(X, dtype=torch.float32)
+    torch_W = torch.tensor(W, dtype=torch.float32)
+
+    with torch.no_grad():
+            torch_conv.weight.copy_(torch_W)
+    
+    Y_actual = torch_conv.forward(torch_X)
+
+    assert np.allclose(Y, Y_actual.detach().numpy())
