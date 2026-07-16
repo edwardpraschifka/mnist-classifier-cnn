@@ -1,8 +1,10 @@
 import numpy as np
 import torch
 import torch.nn as nn
+import pytest
 
 from utils import convolve_1c, convolve
+
 
 def test_conv_1c():
     X = np.array([
@@ -23,16 +25,17 @@ def test_conv_1c():
     ])
 
     assert np.array_equal(Y, Y_actual)
-    
 
-def test_conv():
+    
+@pytest.mark.parametrize("padding", [0,1,2])
+def test_conv(padding: int):
     np.random.seed(42)
     X = np.random.rand(2,3,3)
     W = np.random.randn(3,2,2,2)
 
-    Y = convolve(W,X)
+    Y = convolve(W, X, padding)
     
-    torch_conv = nn.Conv2d(2, 3, 2, bias=False)
+    torch_conv = nn.Conv2d(2, 3, 2, padding=padding, bias=False)
     torch_X = torch.tensor(X, dtype=torch.float32)
     torch_W = torch.tensor(W, dtype=torch.float32)
 

@@ -15,8 +15,11 @@ def convolve_1c(K: np.ndarray,X: np.ndarray):
     
     return Y
 
-def convolve(W: np.ndarray, X: np.ndarray):
+def convolve(W: np.ndarray, X: np.ndarray, padding=0):
     """Performs a convolution over multiple channels"""
+
+    pad_width = [(0,0), (padding, padding), (padding, padding)]
+    X = np.pad(X, pad_width)
 
     wh, ww, kh, kw = np.shape(W)
     xc, xh, xw = np.shape(X)
