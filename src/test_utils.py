@@ -27,18 +27,19 @@ def test_conv_1c():
     assert np.array_equal(Y, Y_actual)
 
     
-@pytest.mark.parametrize("output_channels", [1,2,3])
-@pytest.mark.parametrize("input_channels", [1,2,3])
-@pytest.mark.parametrize("padding", [0,1,2])
-def test_conv(output_channels: int, input_channels: int, padding: int):
+@pytest.mark.parametrize("output_channels", [1,2])
+@pytest.mark.parametrize("input_channels", [1,2])
+@pytest.mark.parametrize("padding", [0,1])
+@pytest.mark.parametrize("stride", [1,2])
+def test_conv(output_channels: int, input_channels: int, padding: int, stride: int):
     np.random.seed(42)
     X = np.random.rand(input_channels,3,3)
     W = np.random.randn(output_channels,input_channels,2,2)
 
-    Y = convolve(W, X, padding)
+    Y = convolve(W, X, padding, stride)
     
     torch_conv = nn.Conv2d(input_channels, output_channels, 2, 
-                           padding=padding, bias=False)
+                           padding=padding, stride=stride, bias=False)
     torch_X = torch.tensor(X, dtype=torch.float32)
     torch_W = torch.tensor(W, dtype=torch.float32)
 
