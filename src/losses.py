@@ -6,8 +6,12 @@ def softmax(X: np.ndarray):
     """Computes softmax for each row of X"""
 
     e_X = np.exp(X)
-    print(f"e_X = {e_X/np.sum(e_X)}")
     return e_X/np.sum(e_X, axis=1, keepdims=True)
 
-def cross_ent():
-    pass
+def cross_ent(Y: np.ndarray, Y_true: np.ndarray):
+    """For each row, computes cross-entropy 
+    loss between Y and Y_true"""
+
+    correct_cat = np.argmax(Y_true, axis=1)
+
+    return [-np.log(row[i]) for (row,i) in zip(Y,correct_cat)]
