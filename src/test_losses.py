@@ -5,7 +5,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from losses import softmax, cross_ent
+from losses import softmax, cross_ent, softmax_cross_ent_grad
 
 def test_softmax():
     X = torch.randn(3, 5)
@@ -31,3 +31,18 @@ def test_cross_ent():
     output = loss(X, target)
 
     assert np.allclose(cross_ent_softmax, output)
+
+
+def test_softmax_cross_ent_grad():
+    torch.manual_seed(42)
+    X = torch.randn(1, 100, requires_grad=True)
+    target = torch.zeros(1, 100)
+    target[0][42] = 1
+    
+    dL_dOut = softmax_cross_ent_grad(X.detach().numpy(), target.detach().numpy(),)
+
+    loss = nn.CrossEntropyLoss()
+    output = loss(X, target)
+    output.backward()
+
+    assert np.allclose(X.grad, dL_dOut)
