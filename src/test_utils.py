@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import pytest
 
-from utils import convolve_1c, convolve, softmax
+from utils import convolve_1c, convolve, softmax, quick_conv2d
 
 
 def test_conv_1c():
@@ -26,30 +26,24 @@ def test_conv_1c():
 
     assert np.array_equal(Y, Y_actual)
 
-    
 @pytest.mark.parametrize("output_channels", [1,2])
 @pytest.mark.parametrize("input_channels", [1,2])
 @pytest.mark.parametrize("padding", [0,1])
 @pytest.mark.parametrize("stride", [1,2])
 @pytest.mark.parametrize("kernel_size", [2,3])
-def test_conv(output_channels: int, input_channels: int, padding: int, stride: int, kernel_size: int):
+@pytest.mark.parametrize("x_size", [4])
+def test_conv(output_channels: int, input_channels: int, padding: int, stride: int, kernel_size: int, x_size: int):
     np.random.seed(42)
-    X = np.random.rand(input_channels,kernel_size+1, kernel_size+1)
-    W = np.random.randn(output_channels,input_channels,kernel_size,kernel_size)
+    W = np.random.rand(output_channels,input_channels,kernel_size,kernel_size)
+    X = np.random.rand(input_channels, x_size, x_size)
+    B = np.zeros(output_channels)
 
+    torch_conv = quick_conv2d(W, B, X, padding, stride)
+    
+    torch_Y = torch_conv.forward(torch.tensor(X, dtype=torch.float32))
     Y = convolve(W, X, padding, stride)
-    
-    torch_conv = nn.Conv2d(input_channels, output_channels, kernel_size, 
-                           padding=padding, stride=stride, bias=False)
-    torch_X = torch.tensor(X, dtype=torch.float32)
-    torch_W = torch.tensor(W, dtype=torch.float32)
 
-    with torch.no_grad():
-            torch_conv.weight.copy_(torch_W)
-    
-    Y_actual = torch_conv.forward(torch_X)
-
-    assert np.allclose(Y, Y_actual.detach().numpy())
+    assert np.allclose(Y, torch_Y.detach())
 
 
 def test_softmax():

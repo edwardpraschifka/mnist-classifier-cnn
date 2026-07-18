@@ -1,4 +1,6 @@
 import numpy as np
+import torch
+import torch.nn as nn
 
 def convolve_1c(K: np.ndarray,X: np.ndarray, stride=1):
     """Performs a convolution over a single channel"""
@@ -37,3 +39,16 @@ def softmax(X: np.ndarray):
     e_X = np.exp(X)
     return e_X/np.sum(e_X, axis=1, keepdims=True)
 
+
+def quick_conv2d(W: np.ndarray, B: np.ndarray, X: np.ndarray, padding: int, stride: int):
+    """Quickly makes a conv2d layer in pytorch"""
+
+    input_channels, xh, _ = np.shape(X)
+    output_channels, _, wh, _ = np.shape(W)
+    conv = nn.Conv2d(input_channels, output_channels, wh, stride, padding)
+
+    with torch.no_grad():
+            conv.weight.copy_(torch.tensor(W))
+            conv.bias.copy_(torch.tensor(B))
+
+    return conv
