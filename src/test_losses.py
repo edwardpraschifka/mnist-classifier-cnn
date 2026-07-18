@@ -26,14 +26,16 @@ def test_loss():
 
 def test_loss_grad():
     torch.manual_seed(42)
-    X = torch.randn(1, 100, requires_grad=True)
-    target = torch.zeros(1, 100)
-    target[0][42] = 1
+    X = torch.randn(3, 5, requires_grad=True)
+    target = torch.zeros(3, 5)
+    target[0][2] = 1
+    target[1][0] = 1
+    target[2][4] = 1
     
-    dL_dOut = loss_grad(X.detach().numpy(), target.detach().numpy(),)
+    dL_dOut = loss_grad(X.detach().numpy(), target.detach().numpy())
 
-    torch_loss = nn.CrossEntropyLoss()
-    torch_dL_dOut = torch_loss(X, target)
-    torch_dL_dOut.backward()
+    cel = nn.CrossEntropyLoss()
+    torch_loss = cel(X, target)
+    torch_loss.backward()
 
     assert np.allclose(X.grad, dL_dOut)
