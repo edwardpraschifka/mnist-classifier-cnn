@@ -31,3 +31,9 @@ def convolve(W: np.ndarray, X: np.ndarray, padding=0, stride=1):
 
     return Y
 
+def softmax(X: np.ndarray):
+    """Computes softmax for each row of X"""
+
+    e_X = np.exp(X)
+    return e_X/np.sum(e_X, axis=1, keepdims=True)
+

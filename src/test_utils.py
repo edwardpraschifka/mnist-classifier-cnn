@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import pytest
 
-from utils import convolve_1c, convolve
+from utils import convolve_1c, convolve, softmax
 
 
 def test_conv_1c():
@@ -50,3 +50,12 @@ def test_conv(output_channels: int, input_channels: int, padding: int, stride: i
     Y_actual = torch_conv.forward(torch_X)
 
     assert np.allclose(Y, Y_actual.detach().numpy())
+
+
+def test_softmax():
+    X = torch.randn(3, 5)
+
+    softmax_X = softmax(X.detach().numpy())
+    torch_softmax_X = torch.softmax(X, dim=-1)
+
+    assert np.allclose(softmax_X, torch_softmax_X)

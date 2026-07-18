@@ -2,24 +2,25 @@
 
 import numpy as np
 
-def softmax(X: np.ndarray):
-    """Computes softmax for each row of X"""
+from utils import softmax
 
-    e_X = np.exp(X)
-    return e_X/np.sum(e_X, axis=1, keepdims=True)
+def loss(Y: np.ndarray, target: np.ndarray):
+    """Computes softmax + cross-entropy loss between Y and Y_true"""
 
-def cross_ent(Y: np.ndarray, Y_true: np.ndarray):
-    """Computes cross-entropy loss between Y and Y_true"""
+    Y_softmax = softmax(Y)
+    target_softmax = softmax(target)
 
-    correct_cat = np.argmax(Y_true, axis=1)
+    correct_cat = np.argmax(target_softmax, axis=1)
 
-    return [-np.log(row[i]) for (row,i) in zip(Y,correct_cat)]
+    loss_by_row = [-np.log(row[i]) for (row,i) in zip(Y_softmax,correct_cat)]
 
-def softmax_cross_ent_grad(Y: np.ndarray, Y_true: np.ndarray):
+    return np.mean(loss_by_row)
+
+def loss_grad(Y: np.ndarray, target: np.ndarray):
     """Returns the derivative of the loss with respect
     to Y"""
 
-    return softmax(Y) - Y_true
+    return softmax(Y) - target
 
 
 
