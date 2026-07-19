@@ -7,7 +7,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from layers import Layer, ConvLayer
-from utils import convolve
+from utils import quick_conv2d
 
 class TestBaseLayer:
     def test_instantiate(self):
@@ -16,17 +16,25 @@ class TestBaseLayer:
 
 
 class TestConvLayer:
-    @pytest.mark.parametrize("output_channels", [1,2,3,4])
-    def test_forward(self, output_channels: int):
+    @pytest.mark.parametrize("input_channels", [1,2])
+    @pytest.mark.parametrize("output_channels", [1,2])
+    def test_forward(self, input_channels:int, output_channels: int):
+        
+        # create our convolutional layer
         np.random.seed(42)
-        input_channels, padding, stride = 2, 0, 1
-        X = np.random.rand(input_channels,3,3)
         W = np.random.rand(output_channels, input_channels, 2, 2)
         B = np.random.rand(output_channels)
+        my_conv = ConvLayer(W, B)
 
-        Y_expected = convolve(W, X, padding, stride) + B[:, None, None]
-
-        my_conv = ConvLayer(W, B, stride, padding)
+        # push random input through convolutional layer
+        X = np.random.rand(input_channels,3,3)
         Y = my_conv.forward(X)
 
-        assert np.allclose(Y_expected, Y)
+        # create pytorch convolutional layer
+        torch_conv = quick_conv2d(W, B)
+
+        # push same input through pytorch layer
+        torch_Y = torch_conv.forward(torch.tensor(X, dtype=torch.float32))
+
+        # compare outputs
+        assert np.allclose(torch_Y.detach().numpy(), Y)

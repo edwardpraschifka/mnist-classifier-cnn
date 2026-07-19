@@ -6,7 +6,7 @@ import pytest
 from utils import convolve_1c, convolve, softmax, quick_conv2d
 
 
-def test_conv_1c():
+def test_convolve_1c():
     X = np.array([
         [1,0,1],
         [-1,1,0],
@@ -32,13 +32,13 @@ def test_conv_1c():
 @pytest.mark.parametrize("stride", [1,2])
 @pytest.mark.parametrize("kernel_size", [2,3])
 @pytest.mark.parametrize("x_size", [4])
-def test_conv(output_channels: int, input_channels: int, padding: int, stride: int, kernel_size: int, x_size: int):
+def test_convolve(output_channels: int, input_channels: int, padding: int, stride: int, kernel_size: int, x_size: int):
     np.random.seed(42)
     W = np.random.rand(output_channels,input_channels,kernel_size,kernel_size)
     X = np.random.rand(input_channels, x_size, x_size)
     B = np.zeros(output_channels)
 
-    torch_conv = quick_conv2d(W, B, X, padding, stride)
+    torch_conv = quick_conv2d(W, B, padding, stride)
     
     torch_Y = torch_conv.forward(torch.tensor(X, dtype=torch.float32))
     Y = convolve(W, X, padding, stride)

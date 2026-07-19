@@ -40,11 +40,10 @@ def softmax(X: np.ndarray):
     return e_X/np.sum(e_X, axis=1, keepdims=True)
 
 
-def quick_conv2d(W: np.ndarray, B: np.ndarray, X: np.ndarray, padding: int, stride: int):
+def quick_conv2d(W: np.ndarray, B: np.ndarray, padding=0, stride=1):
     """Quickly makes a conv2d layer in pytorch"""
 
-    input_channels, xh, _ = np.shape(X)
-    output_channels, _, wh, _ = np.shape(W)
+    output_channels, input_channels, wh, _ = np.shape(W)
     conv = nn.Conv2d(input_channels, output_channels, wh, stride, padding)
 
     with torch.no_grad():
