@@ -16,9 +16,10 @@ class TestBaseLayer:
 
 
 class TestConvLayer:
+    @pytest.mark.parametrize("batch_size", [1,2])
     @pytest.mark.parametrize("input_channels", [1,2])
     @pytest.mark.parametrize("output_channels", [1,2])
-    def test_forward(self, input_channels:int, output_channels: int):
+    def test_forward(self, batch_size: int, input_channels:int, output_channels: int):
         
         # create our convolutional layer
         np.random.seed(42)
@@ -27,7 +28,7 @@ class TestConvLayer:
         my_conv = ConvLayer(W, B)
 
         # push random input through convolutional layer
-        X = np.random.rand(input_channels,3,3)
+        X = np.random.rand(batch_size, input_channels, 3, 3)
         Y = my_conv.forward(X)
 
         # create pytorch convolutional layer
