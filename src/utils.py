@@ -91,3 +91,35 @@ def quick_conv2d(W: np.ndarray, B: np.ndarray, padding=0, stride=1):
             conv.bias.copy_(torch.tensor(B))
 
     return conv
+
+def quick_target(target_height: int, target_width: int) -> np.ndarray:
+    """Generates a random one-hot target array.
+
+    Creates a 2D array where each row is a one-hot vector — a single entry
+    set to 1 at a uniformly random column position, with all other entries
+    set to 0. Useful for constructing dummy classification targets in tests.
+
+    Args:
+        target_height: The number of rows (e.g. batch size, or number of examples).
+        target_width: The number of columns (e.g. number of classes).
+
+    Returns:
+        A 2D array of shape (target_height, target_width) where each row contains
+        exactly one 1 and (target_width - 1) zeros. The position of the 1 in each
+        row is uniformly random and independent across rows.
+
+    Example:
+        ```>>> np.random.seed(0)
+        >>> quick_target(3, 4)
+        array([[0., 0., 0., 1.],
+               [0., 1., 0., 0.],
+               [0., 0., 1., 0.]])
+    """
+
+    target = np.zeros((target_height, target_width))
+
+    for row in range(target_height):
+        index = np.random.randint(0, target_width)
+        target[row][index] = 1
+    
+    return target
