@@ -6,12 +6,12 @@ def convolve_1c(K: np.ndarray,X: np.ndarray, stride=1) -> np.ndarray:
     """Performs a cross-correlation of a single 2D kernel over a single 2D input.
 
     Args:
-        K (np.ndarray): The 2D kernel, shape (kh, kw).
-        X (np.ndarray): The 2D input, shape (xh, xw). Must satisfy xh >= kh and xw >= kw.
+        K (np.ndarray): The 2D kernel, shape (kernel_height, kernel_width).
+        X (np.ndarray): The 2D input, shape (x_height, x_width). Must satisfy x_height >= kernel_height and x_width >= kernel_width.
         stride (int): kernel step size
 
     Returns:
-        A 2D array of shape (xh - kh + 1, xw - kw + 1) containing the
+        A 2D array of shape `ceil((input_size - kernel_size + 1) / stride)` containing the
         cross-correlation output at each valid sliding-window position.
 
     Raises:
@@ -23,18 +23,18 @@ def convolve_1c(K: np.ndarray,X: np.ndarray, stride=1) -> np.ndarray:
         convolve_1c(K, X)
         array([[6, 8], [12, 14]])"""
 
-    kh, kw = np.shape(K)
-    xh, xw = np.shape(X)
+    kernel_height, kernel_width = np.shape(K)
+    x_height, x_width = np.shape(X)
 
-    if xh < kh or xw < kw:
-        raise ValueError(f"dimensions of K ({kh,kw}) cannot exceed dimensions of X ({xh,xw})")
+    if x_height < kernel_height or x_width < kernel_width:
+        raise ValueError(f"dimensions of K ({kernel_height,kernel_width}) cannot exceed dimensions of X ({x_height,x_width})")
 
-    yh, yw = int(np.ceil((xh-kh+1)/stride)), int(np.ceil((xw-kw+1)/stride))
-    Y = np.zeros((yh,yw))
+    y_height, y_width = int(np.ceil((x_height-kernel_height+1)/stride)), int(np.ceil((x_width-kernel_width+1)/stride))
+    Y = np.zeros((y_height,y_width))
 
-    for i in range(yh):
-        for j in range(yw):
-            Y[i][j] = np.sum(K * X[(i*stride):(i*stride)+kh, (j*stride):(j*stride)+kw])
+    for i in range(y_height):
+        for j in range(y_width):
+            Y[i][j] = np.sum(K * X[(i*stride):(i*stride)+kernel_height, (j*stride):(j*stride)+kernel_width])
     
     return Y
 
@@ -46,8 +46,8 @@ def convolve(W: np.ndarray, X: np.ndarray, padding=0, stride=1):
 
     wh, ww, kh, kw = np.shape(W)
     xc, xh, xw = np.shape(X)
-    yc, yh, yw = wh, int(np.ceil((xh-kh+1)/stride)), int(np.ceil((xw-kw+1)/stride))
-    Y = np.zeros((yc, yh, yw))
+    yc, y_height, y_width = wh, int(np.ceil((xh-kh+1)/stride)), int(np.ceil((xw-kw+1)/stride))
+    Y = np.zeros((yc, y_height, y_width))
 
     for i in range(wh):
             Y[i] = np.sum([convolve_1c(W_ij, X_j, stride) for (W_ij, X_j) in zip(W[i],X)], axis=0)
