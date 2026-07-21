@@ -73,22 +73,68 @@ def convolve(W: np.ndarray, X: np.ndarray, padding=0, stride=1):
 
     return Y
 
-def softmax(X: np.ndarray):
-    """Computes softmax for each row of X"""
+def softmax(Y: np.ndarray) -> np.ndarray:
+    """Computes the row-wise softmax of a 2D array.
 
-    e_X = np.exp(X)
-    return e_X/np.sum(e_X, axis=1, keepdims=True)
+    For each row of Y, computes softmax(y_i) = exp(y_i) / sum(exp(y_j))
+    where the denominator sums over that same row, producing a probability
+    distribution: all entries are in [0, 1] and each row sums to 1.
+
+    Args:
+        Y: A 2D array of shape (batch_size, num_classes) containing raw logits,
+           where each row is one example's per-class scores.
+
+    Returns:
+        A 2D array of the same shape as Y, where each row is the softmax
+        probability distribution over classes for that example. Each row
+        sums to 1 (up to floating-point precision).
+
+    Example:
+        >>> Y = np.array([[1.0, 2.0, 3.0], [1.0, 1.0, 1.0]])
+        >>> softmax(Y)
+        array([[0.09003057, 0.24472847, 0.66524096],
+               [0.33333333, 0.33333333, 0.33333333]])"""
+
+    e_Y = np.exp(Y)
+    return e_Y/np.sum(e_Y, axis=1, keepdims=True)
 
 
-def quick_conv2d(W: np.ndarray, B: np.ndarray, padding=0, stride=1):
-    """Quickly makes a conv2d layer in pytorch"""
+def quick_conv2d(W: np.ndarray, B: np.ndarray, padding=0, stride=1) -> nn.Conv2d:
+    """Constructs a PyTorch Conv2d layer with preloaded weights and biases.
+
+    Convenience helper for gradient-checking tests: constructs a torch.nn.Conv2d
+    layer whose weights and bias are copied from provided NumPy arrays, so that
+    it can be run head-to-head against a NumPy convolution implementation with
+    identical parameters.
+
+    Args:
+        W: The 4D weight tensor as a NumPy array, shape
+           (output_channels, input_channels, kh, kw). Kernel must be square
+           (kh == kw), since this function reads only the height dimension.
+        B: The 1D bias vector as a NumPy array, shape (output_channels,).
+        padding: Number of zero-pad rows/columns added to each spatial side of
+            the input. Defaults to 0 (no padding).
+        stride: Kernel step size along both spatial dimensions. Defaults to 1.
+
+    Returns:
+        A torch.nn.Conv2d layer with (in_channels, out_channels, kernel_size,
+        stride, padding) inferred from W's shape, and with .weight and .bias
+        already overwritten with the provided values (no gradient tracking on
+        the copy itself).
+
+    Example:
+        >>> W = np.random.rand(3, 2, 2, 2)
+        >>> B = np.array([0.1, 0.2, 0.3])
+        >>> conv = quick_conv2d(W, B, padding=1, stride=2)
+        >>> Y = conv(torch.randn(1, 2, 5, 5))   # forward pass, weights already set
+    """
 
     output_channels, input_channels, wh, _ = np.shape(W)
     conv = nn.Conv2d(input_channels, output_channels, wh, stride, padding)
 
     with torch.no_grad():
-            conv.weight.copy_(torch.tensor(W))
-            conv.bias.copy_(torch.tensor(B))
+            conv.weight.copy_(torch.tensor(W, dtype=torch.float32))
+            conv.bias.copy_(torch.tensor(B, dtype=torch.float32))
 
     return conv
 
