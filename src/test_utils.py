@@ -65,10 +65,12 @@ def test_convolve(batch_size:int, output_channels: int, input_channels: int, pad
     assert np.allclose(Y, torch_Y.detach())
 
 
-def test_softmax():
-    X = torch.randn(3, 5)
+@pytest.mark.parametrize("Y_height", [2,3])
+@pytest.mark.parametrize("Y_width", [2,3])
+def test_softmax(Y_height: int, Y_width: int):
+    Y = np.random.rand(Y_height, Y_width)
 
-    softmax_X = softmax(X.detach().numpy())
-    torch_softmax_X = torch.softmax(X, dim=-1)
+    softmax_Y = softmax(Y)
+    torch_softmax_Y = torch.softmax(torch.tensor(Y), dim=-1)
 
-    assert np.allclose(softmax_X, torch_softmax_X)
+    assert np.allclose(softmax_Y, torch_softmax_Y)
