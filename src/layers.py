@@ -38,7 +38,9 @@ class ConvLayer(Layer):
 
     def forward(self, X: np.ndarray):
         Y = convolve(self.W, X, self.padding, self.stride)
-        return np.array([Y_i + B_i for (Y_i,B_i) in zip(Y,self.B)])
+
+        # broadcast along output channel axis
+        return Y + self.B.reshape(1, -1, 1, 1)
 
     def backward(self, dL_dOut):
         pass
