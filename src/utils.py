@@ -2,11 +2,32 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-def convolve_1c(K: np.ndarray,X: np.ndarray, stride=1):
-    """Performs a convolution over a single channel"""
+def convolve_1c(K: np.ndarray,X: np.ndarray, stride=1) -> np.ndarray:
+    """Performs a cross-correlation of a single 2D kernel over a single 2D input.
+
+    Args:
+        K (np.ndarray): The 2D kernel, shape (kh, kw).
+        X (np.ndarray): The 2D input, shape (xh, xw). Must satisfy xh >= kh and xw >= kw.
+        stride (int): kernel step size
+
+    Returns:
+        A 2D array of shape (xh - kh + 1, xw - kw + 1) containing the
+        cross-correlation output at each valid sliding-window position.
+
+    Raises:
+        ValueError: If X is smaller than K in either spatial dimension.
+
+    Example:
+        ```K = np.array([[1, 0], [0, 1]])
+        X = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
+        convolve_1c(K, X)
+        array([[6, 8], [12, 14]])"""
 
     kh, kw = np.shape(K)
     xh, xw = np.shape(X)
+
+    if xh < kh or xw < kw:
+        raise ValueError(f"dimensions of K ({kh,kw}) cannot exceed dimensions of X ({xh,xw})")
 
     yh, yw = int(np.ceil((xh-kh+1)/stride)), int(np.ceil((xw-kw+1)/stride))
     Y = np.zeros((yh,yw))

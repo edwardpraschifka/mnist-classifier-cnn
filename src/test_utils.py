@@ -5,26 +5,34 @@ import pytest
 
 from utils import convolve_1c, convolve, softmax, quick_conv2d
 
+@pytest.mark.parametrize("kernel_size", [2,3])
+@pytest.mark.parametrize("stride", [1,2])
+@pytest.mark.parametrize("x_size", [2,3,4])
+def test_convolve_1c(kernel_size: int, stride: int, x_size: int):
 
-def test_convolve_1c():
-    X = np.array([
-        [1,0,1],
-        [-1,1,0],
-        [-1,-1,1]
-    ])
+    # create our convolutional layer
+    np.random.seed(42)
+    K = np.random.rand(kernel_size, kernel_size)
+    B = np.zeros(1)
 
-    K = np.array([
-        [2,1],
-        [0,3]
-    ])
+    # push random input through our convolutional layer
+    x_size = kernel_size+1
+    X = np.random.rand(x_size, x_size)
 
-    Y = convolve_1c(K,X)
-    Y_actual = np.array([
-        [5,1],
-        [-4,5]
-    ])
+    if kernel_size > x_size:
+        with pytest.raises(ValueError):
+            Y = convolve_1c(K,X, stride)
+            
+    Y = convolve_1c(K,X, stride)
 
-    assert np.array_equal(Y, Y_actual)
+    # create pytorch convolutional layer
+    torch_conv = quick_conv2d(K[None, None, :], B, stride=stride)
+
+    # push same input through pytorch layer
+    torch_Y = torch_conv.forward(torch.tensor(X[None, :], dtype=torch.float32))
+
+    # compare outputs
+    assert np.allclose(torch_Y.detach().numpy(), Y)
 
 @pytest.mark.parametrize("output_channels", [1,2])
 @pytest.mark.parametrize("input_channels", [1,2])
