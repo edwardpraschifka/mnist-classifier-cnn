@@ -2,6 +2,8 @@ import numpy as np
 import torch
 import torch.nn as nn
 
+"""Defines various utility functions to be used by layers and during testing"""
+
 def convolve_1c(K: np.ndarray,X: np.ndarray, stride=1) -> np.ndarray:
     """Performs a cross-correlation of a single 2D kernel over a single 2D input.
 
