@@ -8,34 +8,35 @@ import torch.nn as nn
 from losses import loss, loss_grad
 from utils import quick_target
 
-@pytest.mark.parametrize("X_height", [2,3])
-@pytest.mark.parametrize("X_width", [2,3] )
-def test_loss(X_height: int, X_width: int):
+@pytest.mark.parametrize("Y_height", [2,3])
+@pytest.mark.parametrize("Y_width", [2,3])
+def test_loss(Y_height: int, Y_width: int):
 
     np.random.seed(42)
-    X = np.random.rand(X_height, X_width)
-    target = quick_target(X_height, X_width)
+    Y = np.random.rand(Y_height, Y_width)
+    target = quick_target(Y_height, Y_width)
     
-    my_loss = loss(X, target)
+    my_loss = loss(Y, target)
 
     cel = nn.CrossEntropyLoss()
 
-    torch_loss = cel(torch.tensor(X),torch.tensor(target))
+    torch_loss = cel(torch.tensor(Y),torch.tensor(target))
 
     assert np.allclose(my_loss, torch_loss)
 
-def test_loss_grad():
-    torch.manual_seed(42)
-    X = torch.randn(3, 5, requires_grad=True)
-    target = torch.zeros(3, 5)
-    target[0][2] = 1
-    target[1][0] = 1
-    target[2][4] = 1
+@pytest.mark.parametrize("Y_height", [2,3])
+@pytest.mark.parametrize("Y_width", [2,3])
+def test_loss_grad(Y_height: int, Y_width: int):
+
+    np.random.seed(42)
+    Y = np.random.rand(Y_height, Y_width)
+    target = quick_target(Y_height, Y_width)
     
-    dL_dOut = loss_grad(X.detach().numpy(), target.detach().numpy())
+    dL_dOut = loss_grad(Y, target)
 
     cel = nn.CrossEntropyLoss()
-    torch_loss = cel(X, target)
+    torch_Y = torch.tensor(Y, requires_grad=True)
+    torch_loss = cel(torch_Y, torch.tensor(target))
     torch_loss.backward()
 
-    assert np.allclose(X.grad, dL_dOut)
+    assert np.allclose(torch_Y.grad, dL_dOut)
