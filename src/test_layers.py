@@ -35,7 +35,45 @@ class TestConvLayer:
         torch_conv = quick_conv2d(W, B)
 
         # push same input through pytorch layer
-        torch_Y = torch_conv.forward(torch.tensor(X, dtype=torch.float32))
+        torch_X = torch.tensor(X, dtype=torch.float32)
+        torch_Y = torch_conv.forward(torch_X)
 
         # compare outputs
         assert np.allclose(torch_Y.detach().numpy(), Y)
+
+
+    @pytest.mark.parametrize("batch_size", [1,2])
+    @pytest.mark.parametrize("input_channels", [1,2])
+    @pytest.mark.parametrize("output_channels", [1,2])
+    @pytest.mark.parametrize("kernel_size", [2])
+    @pytest.mark.parametrize("X_size", [5])
+    def test_backward(self, X_size, kernel_size, output_channels, input_channels, batch_size):
+
+        # create our convolutional layer
+        np.random.seed(42)
+        W = np.random.rand(output_channels, input_channels, kernel_size, kernel_size).astype(np.float32)
+        B = np.random.rand(output_channels).astype(np.float32)
+        my_conv = ConvLayer(W, B)
+
+        # push random input through convolutional layer
+        X = np.random.rand(batch_size, input_channels, X_size, X_size).astype(np.float32)
+        Y = my_conv.forward(X)
+
+        # create pytorch convolutional layer
+        torch_conv = quick_conv2d(W, B)
+
+        # push same input through pytorch layer
+        torch_X = torch.tensor(X, requires_grad=True)
+        torch_Y = torch_conv.forward(torch_X)
+
+        # generate random dL_dOut and calculate
+        # gradients
+        dL_dOut = np.random.rand(*torch_Y.shape)
+        torch_dL_dOut = torch.tensor(dL_dOut, dtype=torch.float32)
+        my_conv.backward(dL_dOut)
+        torch_Y.backward(torch_dL_dOut)
+
+        # compare outputs
+        assert np.allclose(my_conv.dL_dX, torch_X.grad)
+        assert np.allclose(my_conv.dL_dB, torch_conv.bias.grad)
+        assert np.allclose(my_conv.dL_dW, torch_conv.weight.grad)

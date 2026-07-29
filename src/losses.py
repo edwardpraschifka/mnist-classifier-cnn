@@ -68,19 +68,7 @@ def loss_grad(Y: np.ndarray, target: np.ndarray):
         array([[ 0.04501529,  0.12236424, -0.16737952],
                [-0.33333333,  0.16666667,  0.16666667]])
     """
-
-    # softmax(Y) - target returns a matrix whose
-    # i-th row is dL_i/dy_ij
-
-    # But in our tests, PyTorch returns a 
-    # matrix whose i-th row is
-    # dL_mean/dy_ij = d(L_1/n+L_2/n+...)/dy_ij
-    #              = d(L_i/n)/dy_ij
-    #              = 1/n * d(L_i)/dy_ij
-
-    # we correct this by dividing the final result
-    # by n_rows
-    
+        
     return (softmax(Y) - target)/Y.shape[0]
 
 

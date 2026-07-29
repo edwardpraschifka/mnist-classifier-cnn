@@ -67,7 +67,7 @@ def convolve(W: np.ndarray, X: np.ndarray, padding=0, stride=1):
     Y = np.zeros((batch_size, output_channels, y_height, y_width))
 
     if W.shape[1] != X.shape[1]:
-        raise ValueError(f"W's input channels (f{W.shape[1]}) must match X's input channels (f{X.shape[1]})")
+        raise ValueError(f"W's input channels ({W.shape[1]}) must match X's input channels ({X.shape[1]})")
 
     for batch in range(batch_size):
             for oc in range(output_channels):

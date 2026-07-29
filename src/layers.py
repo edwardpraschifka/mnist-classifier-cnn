@@ -9,7 +9,7 @@ neural network defined as an ordered list of Layer instances."""
 from abc import ABC, abstractmethod
 import numpy as np
 
-from utils import convolve
+from utils import convolve_1c, convolve
 
 class Layer(ABC):
 
@@ -54,6 +54,14 @@ class ConvLayer(Layer):
         self.stride = stride
         self.padding = padding
 
+        # filled after calling forward()
+        self.X = None
+
+        # filled after calling backward()
+        self.dL_dW = None
+        self.dL_dB = None
+        self.dL_dX = None
+
 
     def forward(self, X: np.ndarray):
         """Performs the forward pass: cross-correlate X with W, then add bias.
@@ -66,6 +74,9 @@ class ConvLayer(Layer):
             The output, shape (batch_size, out_channels, y_height, y_width),
             where y_height and y_width are determined by the input size,
             kernel size, stride, and padding."""
+        
+        # store X for use in backward()
+        self.X = X
 
         Y = convolve(self.W, X, self.padding, self.stride)
 
@@ -86,8 +97,29 @@ class ConvLayer(Layer):
             The gradient of the loss with respect to X, shape matching the
             X that was passed to forward()."""
 
-        pass
+        # compute dL/dW
+        self.dL_dW = np.zeros(np.shape(self.W))
 
+        output_channels = np.shape(self.W)[0]
+        input_channels = np.shape(self.W)[1]
+        batch_size = np.shape(self.X)[0]
+
+        for i in range(output_channels): 
+            for j in range(input_channels): 
+                    for b in range(batch_size):
+                        self.dL_dW[i][j] += convolve_1c(dL_dOut[b][i], self.X[b][j])
+        
+        # compute dL/dB
+        self.dL_dB = np.sum(dL_dOut, axis=(0, 2, 3))
+
+        # compute dL/dX
+        W_rot = np.rot90(self.W, k=2, axes = (2,3))
+        W_rot = W_rot.transpose(1, 0, 2, 3)
+        _, _, kh, kw = self.W.shape
+        pad = ((0,0), (0,0), (kh-1, kh-1), (kw-1,kw-1))
+        dL_dOut_pad = np.pad(dL_dOut, pad)
+
+        self.dL_dX = convolve(W_rot, dL_dOut_pad)
     
     def update(self, lr):
         """Applies a gradient descent step to W and B.
