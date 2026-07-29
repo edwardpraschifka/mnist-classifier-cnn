@@ -132,3 +132,57 @@ class ConvLayer(Layer):
 
         self.W -= self.dL_dW * lr
         self.B -= self.dL_dB * lr
+
+class ReluLayer(Layer):
+    """Applies the elementwise ReLU activation, f(x) = max(0, x).
+
+    This layer has no learnable parameters and applies a purely elementwise
+    transformation, so its forward and backward passes preserve the input
+    shape exactly. Any input shape is supported.
+
+    Attributes:
+        X: The input array from the most recent forward() call, cached for
+            backward()'s use in constructing the ReLU mask. None before the
+            first forward pass.
+        dL_dX: The gradient of the loss with respect to X, computed and stored
+            during backward(). None before the first backward pass.
+    """
+
+    def __init__(self):
+        """Initializes the layer with no parameters and empty caches."""
+
+        # filled after calling forward()
+        self.X = None
+
+        # filled after caling backward()
+        self.dL_dX = None
+        
+
+    def forward(self, X: np.ndarray):
+        """Applies elementwise ReLU to X.
+
+        Args:
+            X: The input array of any shape.
+
+        Returns:
+            An array of the same shape as X, with negative entries set to 0
+            and non-negative entries left unchanged.
+        """
+
+        self.X = X
+        return np.maximum(0, X)
+
+    def backward(self, dL_dOut):
+        """Computes dL/dX given dL/dOut.
+
+        Uses the ReLU backward rule: gradient passes through unchanged
+        wherever the forward input was positive, and is zeroed elsewhere.
+
+        Args:
+            dL_dOut: The gradient of the loss with respect to this layer's
+                output, matching the shape of what forward() returned.
+
+        Returns:
+            The gradient of the loss with respect to X, same shape as X.
+        """
+        pass

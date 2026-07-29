@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from layers import Layer, ConvLayer
+from layers import Layer, ConvLayer, ReluLayer
 from utils import quick_conv2d
 
 class TestBaseLayer:
@@ -16,6 +16,7 @@ class TestBaseLayer:
 
 
 class TestConvLayer:
+
     @pytest.mark.parametrize("batch_size", [1,2])
     @pytest.mark.parametrize("input_channels", [1,2])
     @pytest.mark.parametrize("output_channels", [1,2])
@@ -120,4 +121,30 @@ class TestConvLayer:
 
         # compare outputs
         assert np.allclose(my_conv.W, torch_conv.weight.detach().numpy())
-        assert np.allclose(my_conv.B, torch_conv.bias.detach().numpy())    
+        assert np.allclose(my_conv.B, torch_conv.bias.detach().numpy())
+
+
+class TestReluLayer:
+
+    @pytest.mark.parametrize("batch_size", [1,2])
+    @pytest.mark.parametrize("input_channels", [1,2])
+    @pytest.mark.parametrize("X_size", [5])
+    def test_forward(self, X_size, input_channels, batch_size):
+
+        # create our ReLU Layer
+        my_relu = ReluLayer()
+
+        # push random input through ReLU layer
+        X = np.random.rand(batch_size, input_channels, X_size, X_size).astype(np.float32)
+        Y = my_relu.forward(X)
+
+        # create pytorch convolutional layer
+        torch_relu = nn.ReLU()
+
+        # push same input through pytorch layer
+        torch_X = torch.tensor(X)
+        torch_Y = torch_relu.forward(torch_X)
+
+        assert np.allclose(Y, torch_Y)
+
+
