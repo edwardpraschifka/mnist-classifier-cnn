@@ -130,4 +130,5 @@ class ConvLayer(Layer):
         Args:
             lr: The learning rate."""
 
-        pass
+        self.W -= self.dL_dW * lr
+        self.B -= self.dL_dB * lr
