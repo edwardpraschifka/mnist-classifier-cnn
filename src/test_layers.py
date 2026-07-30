@@ -148,3 +148,31 @@ class TestReluLayer:
         assert np.allclose(Y, torch_Y)
 
 
+    @pytest.mark.parametrize("batch_size", [1,2])
+    @pytest.mark.parametrize("input_channels", [1,2])
+    @pytest.mark.parametrize("X_size", [5])
+    def test_backward(self, X_size, input_channels, batch_size):
+
+        # create our ReLU Layer
+        my_relu = ReluLayer()
+
+        # push random input through ReLU layer
+        X = np.random.rand(batch_size, input_channels, X_size, X_size).astype(np.float32)
+        Y = my_relu.forward(X)
+
+        # create pytorch convolutional layer
+        torch_relu = nn.ReLU()
+
+        # push same input through pytorch layer
+        torch_X = torch.tensor(X, requires_grad=True)
+        torch_Y = torch_relu.forward(torch_X)
+
+        # generate random dL_dOut and calculate
+        # gradients
+        dL_dOut = np.random.rand(*torch_Y.shape)
+        torch_dL_dOut = torch.tensor(dL_dOut, dtype=torch.float32)
+        my_relu.backward(dL_dOut)
+        torch_Y.backward(torch_dL_dOut)
+
+        # compare outputs
+        assert np.allclose(my_relu.dL_dX, torch_X.grad)

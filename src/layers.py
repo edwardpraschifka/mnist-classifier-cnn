@@ -91,11 +91,7 @@ class ConvLayer(Layer):
         and returns the gradient with respect to the input.
 
         Args:
-            dL_dOut: The upstream gradient, shape matching forward()'s output.
-
-        Returns:
-            The gradient of the loss with respect to X, shape matching the
-            X that was passed to forward()."""
+            dL_dOut: The upstream gradient, shape matching forward()'s output."""
 
         # compute dL/dW
         self.dL_dW = np.zeros(np.shape(self.W))
@@ -181,8 +177,6 @@ class ReluLayer(Layer):
         Args:
             dL_dOut: The gradient of the loss with respect to this layer's
                 output, matching the shape of what forward() returned.
-
-        Returns:
-            The gradient of the loss with respect to X, same shape as X.
         """
-        pass
+
+        self.dL_dX = (self.X > 0) * dL_dOut
