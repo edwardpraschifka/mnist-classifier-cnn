@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from layers import Layer, ConvLayer, ReluLayer
+from layers import Layer, ConvLayer, ReluLayer, PoolLayer
 from utils import quick_conv2d
 
 class TestBaseLayer:
@@ -131,7 +131,7 @@ class TestReluLayer:
     @pytest.mark.parametrize("X_size", [5])
     def test_forward(self, X_size, input_channels, batch_size):
 
-        # create our ReLU Layer
+        # create our ReLU layer
         my_relu = ReluLayer()
 
         # push random input through ReLU layer
@@ -160,7 +160,7 @@ class TestReluLayer:
         X = np.random.rand(batch_size, input_channels, X_size, X_size).astype(np.float32)
         Y = my_relu.forward(X)
 
-        # create pytorch convolutional layer
+        # create pytorch ReLU layer
         torch_relu = nn.ReLU()
 
         # push same input through pytorch layer
@@ -176,3 +176,33 @@ class TestReluLayer:
 
         # compare outputs
         assert np.allclose(my_relu.dL_dX, torch_X.grad)
+
+
+class TestPoolLayer:
+
+    @pytest.mark.parametrize("batch_size", [2])
+    @pytest.mark.parametrize("input_channels", [2])
+    @pytest.mark.parametrize("X_size", [4])
+    @pytest.mark.parametrize("pool_size", [2])
+    def test_forward(self, pool_size, X_size, input_channels, batch_size):
+                
+        # create our pooling layer
+        my_pool = PoolLayer(pool_size)
+
+        # push random input through pooling layer
+        X = np.random.rand(batch_size, input_channels, X_size, X_size).astype(np.float32)
+        Y = my_pool.forward(X)
+
+        # create pytorch pooling layer
+        torch_pool = nn.MaxPool2d(pool_size, return_indices=True)
+
+        # push same input through pytorch layer
+        torch_X = torch.tensor(X, requires_grad=True)
+        (torch_Y, torch_argmax) = torch_pool.forward(torch_X)
+
+
+        # compare returned y values
+        assert np.allclose(Y, torch_Y.detach().numpy())
+    
+        # compared stored argmax masks
+        assert np.allclose(my_pool.argmax_mask, torch_argmax)

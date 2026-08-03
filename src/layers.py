@@ -130,6 +130,7 @@ class ConvLayer(Layer):
         self.B -= self.dL_dB * lr
 
 class ReluLayer(Layer):
+
     """Applies the elementwise ReLU activation, f(x) = max(0, x).
 
     This layer has no learnable parameters and applies a purely elementwise
@@ -180,3 +181,119 @@ class ReluLayer(Layer):
         """
 
         self.dL_dX = (self.X > 0) * dL_dOut
+
+class PoolLayer(Layer):
+    """Applies 2D max-pooling with a fixed window size and stride.
+
+    Divides the input's spatial dimensions into non-overlapping (or overlapping,
+    depending on stride) windows and outputs the maximum value from each window,
+    reducing the spatial resolution. Applied independently per channel and per
+    batch example — the batch and channel dimensions pass through unchanged.
+
+    This layer has no learnable parameters. During the forward pass, the position
+    of the max within each window is cached so that backward() can route the
+    upstream gradient to that specific position (and zero elsewhere).
+
+    Attributes:
+        pool_size: Tuple (ph, pw) — the pooling window's height and width.
+        stride: The step size between windows along both spatial dimensions.
+        argmax_mask: The cached argmax positions from the most recent forward()
+            call, needed by backward() to route gradients correctly. None before
+            the first forward pass.
+        dL_dX: The gradient of the loss with respect to X, computed and stored
+            during backward(). None before the first backward pass.
+    """
+
+    def __init__(self, pool_size: int):
+        """Initializes the pooling layer.
+
+        Args:
+            pool_size: Tuple (ph, pw) specifying the window height and width.
+        """
+
+        self.pool_size = pool_size
+
+        # filled after caling forward()
+        self.argmax_mask = None
+
+        # filled after caling backward()
+        self.dL_dX = None
+
+    def forward(self, X: np.ndarray) -> np.ndarray:
+        """Applies max-pooling to X.
+
+        For each pooling window, keeps the maximum value and records its
+        position (used by backward()).
+
+        Args:
+            X: The input, shape (batch_size, channels, x_height, x_width).
+
+        Returns:
+            The pooled output, shape (batch_size, channels, y_height, y_width).
+        """
+
+        batch_size, channels, xh, xw = X.shape
+        yh, yw = xh//self.pool_size, xw//self.pool_size 
+        y = np.zeros((batch_size, channels, yh, yw))
+        X_flat = X.reshape(batch_size, channels, -1)
+        self.argmax_mask = []
+
+        for i in range(0, xh - self.pool_size + 1, self.pool_size):
+            for j in range(0, xw - self.pool_size + 1, self.pool_size):
+                window = X[:,:,i:i+self.pool_size, j:j+self.pool_size]
+
+                # corresponding y indices
+                k, l = i//self.pool_size, j//self.pool_size
+
+                # === find y for this window (easy - just max value of window)===
+                y[:, :, k, l] = np.max(window, axis=(2,3))
+
+                # === find argmax_mask for this window ===
+                # flatten window, apply argmax on each training example/channel
+                # combination
+                window_flat = window.reshape(batch_size, channels, -1)
+                window_flat_i = np.argmax(window_flat, axis=2).reshape(-1)
+
+                # convert flattened index to pairwise coordinates
+                # relative to window
+                window_i, window_j = np.unravel_index(window_flat_i, (self.pool_size,self.pool_size))
+
+                # convert pairwise window coordinates to
+                # pairwise X coordinates
+                X_i, X_j = i + window_i, j + window_j
+
+                # convert pairwise X coordinates to flattened
+                # X coordinates
+                X_flat_i = (X_i * xw) + X_j
+
+                # update argmax_mask with flattened X coordinates
+                self.argmax_mask.append(X_flat_i)
+
+        self.argmax_mask = np.stack(self.argmax_mask, axis=-1).reshape(y.shape)
+        return y
+        
+
+
+    def backward(self, dL_dOut: np.ndarray) -> np.ndarray:
+        """Computes dL/dX given dL/dOut by routing gradient to argmax positions.
+
+        For each pooled output position, the upstream gradient is placed at
+        the input position that was the argmax during forward() (recorded in
+        argmax_mask). All other positions in each window receive zero.
+
+        In the case of ties within a window (multiple positions holding the
+        same max value), the gradient is routed to whichever position was
+        selected as "the" argmax during forward — dependent on the
+        tie-breaking convention used there.
+
+        Args:
+            dL_dOut: The upstream gradient, shape matching forward()'s output.
+
+        Returns:
+            The gradient of the loss with respect to X, same shape as the X
+            passed to forward. Mostly zeros — nonzero only at the argmax
+            positions from the forward pass.
+        """
+
+        pass
+    
