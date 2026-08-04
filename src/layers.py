@@ -214,6 +214,7 @@ class PoolLayer(Layer):
         self.pool_size = pool_size
 
         # filled after caling forward()
+        self.X = None
         self.argmax_mask = None
 
         # filled after caling backward()
@@ -270,6 +271,7 @@ class PoolLayer(Layer):
                 self.argmax_mask.append(X_flat_i)
 
         self.argmax_mask = np.stack(self.argmax_mask, axis=-1).reshape(y.shape)
+        self.X = X
         return y
         
 
@@ -295,5 +297,10 @@ class PoolLayer(Layer):
             positions from the forward pass.
         """
 
-        pass
-    
+        batch_size, channels, xh, xw = self.X.shape
+        self.dL_dX = np.zeros(self.X.shape).reshape(batch_size * channels, -1)
+        indices = self.argmax_mask.reshape(batch_size * channels, -1)
+        values = dL_dOut.reshape(batch_size * channels, -1)
+        
+        np.put_along_axis(self.dL_dX , indices, values, axis=1)
+        self.dL_dX = self.dL_dX.reshape(batch_size, channels, xh, xw)

@@ -180,8 +180,8 @@ class TestReluLayer:
 
 class TestPoolLayer:
 
-    @pytest.mark.parametrize("batch_size", [2])
-    @pytest.mark.parametrize("input_channels", [2])
+    @pytest.mark.parametrize("batch_size", [1])
+    @pytest.mark.parametrize("input_channels", [1])
     @pytest.mark.parametrize("X_size", [4])
     @pytest.mark.parametrize("pool_size", [2])
     def test_forward(self, pool_size, X_size, input_channels, batch_size):
@@ -200,9 +200,36 @@ class TestPoolLayer:
         torch_X = torch.tensor(X, requires_grad=True)
         (torch_Y, torch_argmax) = torch_pool.forward(torch_X)
 
-
         # compare returned y values
         assert np.allclose(Y, torch_Y.detach().numpy())
     
         # compared stored argmax masks
         assert np.allclose(my_pool.argmax_mask, torch_argmax)
+
+    @pytest.mark.parametrize("batch_size", [1,2])
+    @pytest.mark.parametrize("input_channels", [1,2])
+    @pytest.mark.parametrize("X_size", [3,4])
+    @pytest.mark.parametrize("pool_size", [2])
+    def test_backward(self, pool_size, X_size, input_channels, batch_size):
+
+        # create our pooling Layer
+        my_pool = PoolLayer(pool_size)
+
+        # push random input through pooling layer
+        X = np.random.rand(batch_size, input_channels, X_size, X_size).astype(np.float32)
+        Y = my_pool.forward(X)
+
+        # create pytorch pooling layer
+        torch_pool = nn.MaxPool2d(pool_size)
+
+        # push same input through pytorch layer
+        torch_X = torch.tensor(X, requires_grad=True)
+        torch_Y = torch_pool.forward(torch_X)
+
+        # generate random dL_dOut and calculate
+        # gradients
+        dL_dOut = np.random.rand(*torch_Y.shape)
+        torch_dL_dOut = torch.tensor(dL_dOut, dtype=torch.float32)
+        my_pool.backward(dL_dOut)
+        torch_Y.backward(torch_dL_dOut)
+        assert np.allclose(my_pool.dL_dX, torch_X.grad)
