@@ -304,3 +304,40 @@ class PoolLayer(Layer):
         
         np.put_along_axis(self.dL_dX , indices, values, axis=1)
         self.dL_dX = self.dL_dX.reshape(batch_size, channels, xh, xw)
+
+
+class FlattenLayer(Layer):
+
+    def __init__(self):
+        """Initializes the flatten layer."""
+
+        # filled after caling forward()
+        self.X = None
+
+        # filled after caling backward()
+        self.dL_dX = None
+
+    def forward(self, X):
+        """
+        Flatten the input tensor from shape (batch_size, channels, height, width)
+        into shape (batch_size, channels * height * width), while caching
+        whatever is needed (e.g. the original input shape) for use in backward().
+        """
+
+        self.X = X
+        batch_size, channels, xh, xw = X.shape
+        return X.reshape(batch_size, channels * xh * xw)
+
+    def backward(self, dL_dOut):
+        """
+        Reshape the incoming gradient dL_dOut from the flattened shape
+        (batch_size, channels * height * width) back into the original
+        (batch_size, channels, height, width) shape, using whatever was
+        cached during forward(), and store it as self.dL_dX.
+        """
+
+        batch_size, channels, xh, xw = self.X.shape
+
+        self.dL_dX = dL_dOut.reshape(batch_size, channels, xh, xw)
+
+

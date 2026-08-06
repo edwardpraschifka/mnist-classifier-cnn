@@ -5,7 +5,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from layers import Layer, ConvLayer, ReluLayer, PoolLayer
+from layers import Layer, ConvLayer, ReluLayer, PoolLayer, FlattenLayer
 
 class TestBaseLayer:
     def test_instantiate(self):
@@ -46,6 +46,10 @@ def setup_layers(request):
     if layer_type == PoolLayer:
             my_layer = PoolLayer(K_size)
             torch_layer = nn.MaxPool2d(K_size, return_indices=True)
+
+    if layer_type == FlattenLayer:
+            my_layer = FlattenLayer()
+            torch_layer = nn.Flatten()
 
     return my_layer, X, torch_layer, torch_X
 
@@ -145,8 +149,7 @@ class TestPoolLayer:
             {"layer_type": PoolLayer, "batch_size": 2, "K_size": 3, "X_size": 4}]
 
     @pytest.mark.parametrize("setup_layers", params, indirect=True)
-    def test_forward(self, setup_layers):
-                
+    def test_forward(self, setup_layers):    
         my_layer, X, torch_layer, torch_X = setup_layers
         Y = my_layer.forward(X)
         (torch_Y, torch_argmax) = torch_layer.forward(torch_X)
@@ -156,7 +159,6 @@ class TestPoolLayer:
 
     @pytest.mark.parametrize("setup_layers", params, indirect=True)
     def test_backward(self, setup_layers):
-
         my_layer, X, torch_layer, torch_X = setup_layers
         Y = my_layer.forward(X)
         (torch_Y, torch_argmax) = torch_layer.forward(torch_X)
@@ -165,4 +167,32 @@ class TestPoolLayer:
         torch_dL_dOut = torch.tensor(dL_dOut, dtype=torch.float32)
         my_layer.backward(dL_dOut)
         torch_Y.backward(torch_dL_dOut)
+        assert np.allclose(my_layer.dL_dX, torch_X.grad)
+
+class TestFlattenLayer:
+    params = [{"layer_type": FlattenLayer, "batch_size": 1, "input_channels": 1, "X_size": 3},
+            {"layer_type": FlattenLayer, "batch_size": 2, "input_channels": 1, "X_size": 3},
+            {"layer_type": FlattenLayer, "batch_size": 1, "input_channels": 2, "X_size": 4},
+            {"layer_type": FlattenLayer, "batch_size": 2, "input_channels": 2, "X_size": 4}]
+    
+    @pytest.mark.parametrize("setup_layers", params, indirect=True)
+    def test_forward(self, setup_layers):
+        my_layer, X, torch_layer, torch_X = setup_layers
+        Y = my_layer.forward(X)
+        torch_Y = torch_layer.forward(torch_X)
+
+        assert np.allclose(Y, torch_Y.detach().numpy())
+
+    @pytest.mark.parametrize("setup_layers", params, indirect=True)
+    def test_backward(self, setup_layers):
+
+        my_layer, X, torch_layer, torch_X = setup_layers
+        Y = my_layer.forward(X)
+        torch_Y = torch_layer.forward(torch_X)
+
+        dL_dOut = np.random.rand(*torch_Y.shape)
+        torch_dL_dOut = torch.tensor(dL_dOut, dtype=torch.float32)
+        my_layer.backward(dL_dOut)
+        torch_Y.backward(torch_dL_dOut)
+        
         assert np.allclose(my_layer.dL_dX, torch_X.grad)
