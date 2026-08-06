@@ -4,10 +4,8 @@ import pytest
 import numpy as np
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 from layers import Layer, ConvLayer, ReluLayer, PoolLayer
-from utils import quick_conv2d
 
 class TestBaseLayer:
     def test_instantiate(self):
@@ -15,221 +13,156 @@ class TestBaseLayer:
             my_layer_class = Layer()
 
 
+@pytest.fixture
+def setup_layers(request):
+    layer_type = request.param.get("layer_type", ConvLayer)
+    batch_size = request.param.get("batch_size", 1)
+    output_channels = request.param.get("output_channels", 1)
+    input_channels = request.param.get("input_channels", 1)
+    K_size = request.param.get("K_size", 3)
+    X_size = request.param.get("X_size", 4)
+
+    W = np.random.rand(output_channels, input_channels, K_size, K_size)
+    B = np.random.rand(output_channels)
+    X = np.random.rand(batch_size, input_channels, X_size, X_size)
+    
+
+    torch_W = torch.tensor(W, dtype=torch.float32, requires_grad=True)
+    torch_B = torch.tensor(B, dtype=torch.float32, requires_grad=True)
+    torch_X = torch.tensor(X, dtype=torch.float32, requires_grad=True)
+
+    if layer_type == ConvLayer:
+        my_layer = ConvLayer(W, B)
+        torch_layer = nn.Conv2d(input_channels, output_channels, K_size)
+
+        with torch.no_grad():
+            torch_layer.weight.copy_(torch_W)
+            torch_layer.bias.copy_(torch_B)
+
+    if layer_type == ReluLayer:
+        my_layer = ReluLayer()
+        torch_layer = nn.ReLU()
+    
+    if layer_type == PoolLayer:
+            my_layer = PoolLayer(K_size)
+            torch_layer = nn.MaxPool2d(K_size, return_indices=True)
+
+    return my_layer, X, torch_layer, torch_X
+
 class TestConvLayer:
+    params = [{"layer_type": ConvLayer, "batch_size": 1, "output_channels": 1, "input_channels": 1, "K_size": 2, "X_size": 3},
+                                            {"layer_type": ConvLayer, "batch_size": 2, "output_channels": 1, "input_channels": 2, "K_size": 2, "X_size": 3},
+                                            {"layer_type": ConvLayer, "batch_size": 1, "output_channels": 2, "input_channels": 2, "K_size": 3, "X_size": 4},
+                                            {"layer_type": ConvLayer, "batch_size": 2, "output_channels": 2, "input_channels": 2, "K_size": 3, "X_size": 4}]
+    
+    @pytest.mark.parametrize("setup_layers", params, indirect=True)
+    def test_forward(self, setup_layers):
 
-    @pytest.mark.parametrize("batch_size", [1,2])
-    @pytest.mark.parametrize("input_channels", [1,2])
-    @pytest.mark.parametrize("output_channels", [1,2])
-    def test_forward(self, batch_size: int, input_channels:int, output_channels: int):
-        
-        # create our convolutional layer
-        np.random.seed(42)
-        W = np.random.rand(output_channels, input_channels, 2, 2)
-        B = np.random.rand(output_channels)
-        my_conv = ConvLayer(W, B)
-
-        # push random input through convolutional layer
-        X = np.random.rand(batch_size, input_channels, 3, 3)
-        Y = my_conv.forward(X)
-
-        # create pytorch convolutional layer
-        torch_conv = quick_conv2d(W, B)
-
-        # push same input through pytorch layer
-        torch_X = torch.tensor(X, dtype=torch.float32)
-        torch_Y = torch_conv.forward(torch_X)
-
-        # compare outputs
+        my_layer, X, torch_layer, torch_X = setup_layers
+        Y = my_layer.forward(X)
+        torch_Y = torch_layer.forward(torch_X)
         assert np.allclose(torch_Y.detach().numpy(), Y)
 
 
-    @pytest.mark.parametrize("batch_size", [1,2])
-    @pytest.mark.parametrize("input_channels", [1,2])
-    @pytest.mark.parametrize("output_channels", [1,2])
-    @pytest.mark.parametrize("kernel_size", [2])
-    @pytest.mark.parametrize("X_size", [5])
-    def test_backward(self, X_size, kernel_size, output_channels, input_channels, batch_size):
+    @pytest.mark.parametrize("setup_layers", params, indirect=True)
+    def test_backward(self, setup_layers):
 
-        # create our convolutional layer
-        np.random.seed(42)
-        W = np.random.rand(output_channels, input_channels, kernel_size, kernel_size).astype(np.float32)
-        B = np.random.rand(output_channels).astype(np.float32)
-        my_conv = ConvLayer(W, B)
+        my_layer, X, torch_layer, torch_X = setup_layers
+        Y = my_layer.forward(X)
+        torch_Y = torch_layer.forward(torch_X)
 
-        # push random input through convolutional layer
-        X = np.random.rand(batch_size, input_channels, X_size, X_size).astype(np.float32)
-        Y = my_conv.forward(X)
-
-        # create pytorch convolutional layer
-        torch_conv = quick_conv2d(W, B)
-
-        # push same input through pytorch layer
-        torch_X = torch.tensor(X, requires_grad=True)
-        torch_Y = torch_conv.forward(torch_X)
-
-        # generate random dL_dOut and calculate
-        # gradients
         dL_dOut = np.random.rand(*torch_Y.shape)
         torch_dL_dOut = torch.tensor(dL_dOut, dtype=torch.float32)
-        my_conv.backward(dL_dOut)
+
+        my_layer.backward(dL_dOut)
         torch_Y.backward(torch_dL_dOut)
 
-        # compare outputs
-        assert np.allclose(my_conv.dL_dX, torch_X.grad)
-        assert np.allclose(my_conv.dL_dB, torch_conv.bias.grad)
-        assert np.allclose(my_conv.dL_dW, torch_conv.weight.grad)
+        assert np.allclose(my_layer.dL_dX, torch_X.grad)
+        assert np.allclose(my_layer.dL_dB, torch_layer.bias.grad)
+        assert np.allclose(my_layer.dL_dW, torch_layer.weight.grad)
 
+    @pytest.mark.parametrize("learning_rate", [0.1, 0.01, 0.001])
+    @pytest.mark.parametrize("setup_layers", [{"layer_type": ConvLayer, "batch_size": 2, "output_channels": 2, "input_channels": 2, "K_size": 2, "X_size": 3}], indirect=True)
+    def test_update(self, setup_layers, learning_rate):
 
-    @pytest.mark.parametrize("batch_size", [2])
-    @pytest.mark.parametrize("input_channels", [2])
-    @pytest.mark.parametrize("output_channels", [2])
-    @pytest.mark.parametrize("kernel_size", [2])
-    @pytest.mark.parametrize("X_size", [5])
-    @pytest.mark.parametrize("learning_rate", [0.001,0.01])
-    def test_update(self, learning_rate, X_size, kernel_size, output_channels, input_channels, batch_size):
+        my_layer, X, torch_layer, torch_X = setup_layers
+        Y = my_layer.forward(X)
+        torch_Y = torch_layer.forward(torch_X)
 
-        # create our convolutional layer
-        np.random.seed(42)
-        W = np.random.rand(output_channels, input_channels, kernel_size, kernel_size).astype(np.float32)
-        B = np.random.rand(output_channels).astype(np.float32)
-        my_conv = ConvLayer(W, B)
-
-        # push random input through convolutional layer
-        X = np.random.rand(batch_size, input_channels, X_size, X_size).astype(np.float32)
-        Y = my_conv.forward(X)
-
-        # create pytorch convolutional layer
-        torch_conv = quick_conv2d(W, B)
-
-        # push same input through pytorch layer
-        torch_X = torch.tensor(X, requires_grad=True)
-        torch_Y = torch_conv.forward(torch_X)
-
-        # generate random dL_dOut and calculate
-        # gradients
         dL_dOut = np.random.rand(*torch_Y.shape)
         torch_dL_dOut = torch.tensor(dL_dOut, dtype=torch.float32)
-        my_conv.backward(dL_dOut)
+        
+        my_layer.backward(dL_dOut)
         torch_Y.backward(torch_dL_dOut)
 
-        # update
         with torch.no_grad():
-            torch_conv.weight -= learning_rate * torch_conv.weight.grad
-            torch_conv.bias -= learning_rate * torch_conv.bias.grad
+            torch_layer.weight -= learning_rate * torch_layer.weight.grad
+            torch_layer.bias -= learning_rate * torch_layer.bias.grad
 
-        my_conv.update(learning_rate)
+        my_layer.update(learning_rate)
 
         # compare outputs
-        assert np.allclose(my_conv.W, torch_conv.weight.detach().numpy())
-        assert np.allclose(my_conv.B, torch_conv.bias.detach().numpy())
+        assert np.allclose(my_layer.W, torch_layer.weight.detach().numpy())
+        assert np.allclose(my_layer.B, torch_layer.bias.detach().numpy())
 
 
 class TestReluLayer:
+    params = [{"layer_type": ReluLayer, "batch_size": 1, "X_size": 3},
+            {"layer_type": ReluLayer, "batch_size": 2, "X_size": 3},
+            {"layer_type": ReluLayer, "batch_size": 1, "X_size": 4},
+            {"layer_type": ReluLayer, "batch_size": 2, "X_size": 4}]
+    
+    @pytest.mark.parametrize("setup_layers", params, indirect=True)
+    def test_forward(self, setup_layers):
 
-    @pytest.mark.parametrize("batch_size", [1,2])
-    @pytest.mark.parametrize("input_channels", [1,2])
-    @pytest.mark.parametrize("X_size", [5])
-    def test_forward(self, X_size, input_channels, batch_size):
+        my_layer, X, torch_layer, torch_X = setup_layers
+        Y = my_layer.forward(X)
+        torch_Y = torch_layer.forward(torch_X)
 
-        # create our ReLU layer
-        my_relu = ReluLayer()
-
-        # push random input through ReLU layer
-        X = np.random.rand(batch_size, input_channels, X_size, X_size).astype(np.float32)
-        Y = my_relu.forward(X)
-
-        # create pytorch convolutional layer
-        torch_relu = nn.ReLU()
-
-        # push same input through pytorch layer
-        torch_X = torch.tensor(X)
-        torch_Y = torch_relu.forward(torch_X)
-
-        assert np.allclose(Y, torch_Y)
+        assert np.allclose(Y, torch_Y.detach().numpy())
 
 
-    @pytest.mark.parametrize("batch_size", [1,2])
-    @pytest.mark.parametrize("input_channels", [1,2])
-    @pytest.mark.parametrize("X_size", [5])
-    def test_backward(self, X_size, input_channels, batch_size):
+    @pytest.mark.parametrize("setup_layers", params, indirect=True)
+    def test_backward(self, setup_layers):
 
-        # create our ReLU Layer
-        my_relu = ReluLayer()
+        my_layer, X, torch_layer, torch_X = setup_layers
+        Y = my_layer.forward(X)
+        torch_Y = torch_layer.forward(torch_X)
 
-        # push random input through ReLU layer
-        X = np.random.rand(batch_size, input_channels, X_size, X_size).astype(np.float32)
-        Y = my_relu.forward(X)
-
-        # create pytorch ReLU layer
-        torch_relu = nn.ReLU()
-
-        # push same input through pytorch layer
-        torch_X = torch.tensor(X, requires_grad=True)
-        torch_Y = torch_relu.forward(torch_X)
-
-        # generate random dL_dOut and calculate
-        # gradients
         dL_dOut = np.random.rand(*torch_Y.shape)
         torch_dL_dOut = torch.tensor(dL_dOut, dtype=torch.float32)
-        my_relu.backward(dL_dOut)
+        my_layer.backward(dL_dOut)
         torch_Y.backward(torch_dL_dOut)
 
-        # compare outputs
-        assert np.allclose(my_relu.dL_dX, torch_X.grad)
+        assert np.allclose(my_layer.dL_dX, torch_X.grad)
 
 
 class TestPoolLayer:
 
-    @pytest.mark.parametrize("batch_size", [1])
-    @pytest.mark.parametrize("input_channels", [1])
-    @pytest.mark.parametrize("X_size", [4])
-    @pytest.mark.parametrize("pool_size", [2])
-    def test_forward(self, pool_size, X_size, input_channels, batch_size):
+    params = [{"layer_type": PoolLayer, "batch_size": 1, "K_size": 2, "X_size": 3},
+            {"layer_type": PoolLayer, "batch_size": 2, "K_size": 2, "X_size": 3},
+            {"layer_type": PoolLayer, "batch_size": 1, "K_size": 3, "X_size": 4},
+            {"layer_type": PoolLayer, "batch_size": 2, "K_size": 3, "X_size": 4}]
+
+    @pytest.mark.parametrize("setup_layers", params, indirect=True)
+    def test_forward(self, setup_layers):
                 
-        # create our pooling layer
-        my_pool = PoolLayer(pool_size)
+        my_layer, X, torch_layer, torch_X = setup_layers
+        Y = my_layer.forward(X)
+        (torch_Y, torch_argmax) = torch_layer.forward(torch_X)
 
-        # push random input through pooling layer
-        X = np.random.rand(batch_size, input_channels, X_size, X_size).astype(np.float32)
-        Y = my_pool.forward(X)
-
-        # create pytorch pooling layer
-        torch_pool = nn.MaxPool2d(pool_size, return_indices=True)
-
-        # push same input through pytorch layer
-        torch_X = torch.tensor(X, requires_grad=True)
-        (torch_Y, torch_argmax) = torch_pool.forward(torch_X)
-
-        # compare returned y values
         assert np.allclose(Y, torch_Y.detach().numpy())
-    
-        # compared stored argmax masks
-        assert np.allclose(my_pool.argmax_mask, torch_argmax)
+        assert np.allclose(my_layer.argmax_mask, torch_argmax)
 
-    @pytest.mark.parametrize("batch_size", [1,2])
-    @pytest.mark.parametrize("input_channels", [1,2])
-    @pytest.mark.parametrize("X_size", [3,4])
-    @pytest.mark.parametrize("pool_size", [2])
-    def test_backward(self, pool_size, X_size, input_channels, batch_size):
+    @pytest.mark.parametrize("setup_layers", params, indirect=True)
+    def test_backward(self, setup_layers):
 
-        # create our pooling Layer
-        my_pool = PoolLayer(pool_size)
+        my_layer, X, torch_layer, torch_X = setup_layers
+        Y = my_layer.forward(X)
+        (torch_Y, torch_argmax) = torch_layer.forward(torch_X)
 
-        # push random input through pooling layer
-        X = np.random.rand(batch_size, input_channels, X_size, X_size).astype(np.float32)
-        Y = my_pool.forward(X)
-
-        # create pytorch pooling layer
-        torch_pool = nn.MaxPool2d(pool_size)
-
-        # push same input through pytorch layer
-        torch_X = torch.tensor(X, requires_grad=True)
-        torch_Y = torch_pool.forward(torch_X)
-
-        # generate random dL_dOut and calculate
-        # gradients
         dL_dOut = np.random.rand(*torch_Y.shape)
         torch_dL_dOut = torch.tensor(dL_dOut, dtype=torch.float32)
-        my_pool.backward(dL_dOut)
+        my_layer.backward(dL_dOut)
         torch_Y.backward(torch_dL_dOut)
-        assert np.allclose(my_pool.dL_dX, torch_X.grad)
+        assert np.allclose(my_layer.dL_dX, torch_X.grad)
